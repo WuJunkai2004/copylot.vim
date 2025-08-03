@@ -3,7 +3,7 @@
 
 if exists("g:loaded_fittencode")
     finish
-  endif
+endif
 let g:loaded_fittencode = 1
 let g:accept_just_now = 0
 
@@ -19,14 +19,27 @@ function! SetSuggestionStyle() abort
     endif
 endfunction
 
-let g:fitten_auto_completion = 0
+function! s:get(url, header) abort
+    let l:cmd = 'curl -s -H "' . a:header . '" "' . a:url . '"'
+    let l:response = system(l:cmd)
+    return json_decode(l:response)
+endfunction
+
+function! s:post(url, jsondata) abort
+    let l:temp = tempname()
+    call writefile(json_encode(a:jsondata), l:temp)
+    let l:cmd = 'curl -s -X POST -H "Content-Type: application/json" -d @' . l:temp .' "' . a:url . '"'
+    let l:response = system(l:cmd)
+    return json_decode(l:response)
+endfunction
 
 function! Fittenlogin(account, password)
     let l:login_url = 'https://fc.fittenlab.cn/codeuser/login'
-    let l:json_data = '{"username": "' . a:account . '", "password": "' . a:password . '"}'
-    let l:login_command = 'curl -s -X POST -H "Content-Type: application/json" -d ' . shellescape(l:json_data) . ' ' . l:login_url
-    let l:response = system(l:login_command)
-    let l:login_data = json_decode(l:response)
+    let l:data = {
+        "username": a:account,
+        "password": a:password
+    }
+    let l:login_data = s:post(l:login_url, l:data)
 
     if v:shell_error || !has_key(l:login_data, 'code') || l:login_data.code != 200
         echo "Login failed"
@@ -36,9 +49,8 @@ function! Fittenlogin(account, password)
     let l:user_token = l:login_data.data.token
 
     let l:fico_url = 'https://fc.fittenlab.cn/codeuser/get_ft_token'
-    let l:fico_command = 'curl -s -H "Authorization: Bearer ' . l:user_token . '" ' . l:fico_url
-    let l:fico_response = system(l:fico_command)
-    let l:fico_data = json_decode(l:fico_response)
+    let l:fico_head = 'Authorization: Bearer ' . l:user_token
+    let l:fico_data = s:get(l:fico_url, l:fico_head)
 
     if v:shell_error || !has_key(l:fico_data, 'data')
         echo "Login failed"
@@ -46,7 +58,7 @@ function! Fittenlogin(account, password)
     endif
 
     let l:apikey = l:fico_data.data.fico_token
-    call writefile([l:apikey], $HOME . '/.vimapikey')
+    call writefile([l:apikey], $HOME . '/.vim/.FittenToken')
 
     echo "Login successful, API key saved"
     let g:fitten_login_status = 1
@@ -55,8 +67,8 @@ endfunction
 command! -nargs=+ Fittenlogin call Fittenlogin(<f-args>)
 
 function! Fittenlogout()
-    if filereadable($HOME . '/.vimapikey')
-        call delete($HOME . '/.vimapikey')
+    if filereadable($HOME . '/.vim/.FittenToken')
+        call delete($HOME . '/.vim/.FittenToken')
         echo "Logged out successfully"
     else
         echo "You are already logged out"
@@ -67,7 +79,7 @@ command! Fittenlogout call Fittenlogout()
 
 
 function! CheckLoginStatus()
-    if filereadable($HOME . '/.vimapikey')
+    if filereadable($HOME . '/.vim/.FittenToken')
 "        echo "Logged in"
         return 1
     else
@@ -118,7 +130,7 @@ function! CodeCompletion()
     let l:escaped_prompt = substitute(l:escaped_prompt, '\\\\n', '\\n', 'g')
     " replace \\t to \t
     let l:escaped_prompt = substitute(l:escaped_prompt, '\t', '\\t', 'g')
-    let l:token = join(readfile($HOME . '/.vimapikey'), "\n")
+    let l:token = join(readfile($HOME . '/.vim/.FittenToken'), "\n")
 
     let l:params = '{"inputs": "' . l:escaped_prompt . '", "meta_datas": {"filename": "' . l:filename . '"}}'
 
@@ -252,6 +264,9 @@ if !exists('g:fitten_accept_key')
 endif
 if !exists('g:fitten_login_status')
     let g:fitten_login_status = CheckLoginStatus()
+endif
+if !exists('g:fitten_auto_completion')
+    let g:fitten_auto_completion = 0
 endif
 function! FittenMapping()
     execute "inoremap" keytrans(g:fitten_trigger) '<Cmd>call CodeCompletion()<CR>'
