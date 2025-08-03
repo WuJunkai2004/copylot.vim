@@ -27,18 +27,19 @@ endfunction
 
 function! s:post(url, jsondata) abort
     let l:temp = tempname()
-    call writefile(json_encode(a:jsondata), l:temp)
+    call writefile([json_encode(a:jsondata)], l:temp)
     let l:cmd = 'curl -s -X POST -H "Content-Type: application/json" -d @' . l:temp .' "' . a:url . '"'
     let l:response = system(l:cmd)
+    call delete(l:temp)
     return json_decode(l:response)
 endfunction
 
 function! Fittenlogin(account, password)
     let l:login_url = 'https://fc.fittenlab.cn/codeuser/login'
-    let l:data = {
-        "username": a:account,
-        "password": a:password
-    }
+    let l:data = { 
+\       "username": a:account,
+\       "password": a:password
+\   }
     let l:login_data = s:post(l:login_url, l:data)
 
     if v:shell_error || !has_key(l:login_data, 'code') || l:login_data.code != 200
@@ -132,29 +133,27 @@ function! CodeCompletion()
     let l:escaped_prompt = substitute(l:escaped_prompt, '\t', '\\t', 'g')
     let l:token = join(readfile($HOME . '/.vim/.FittenToken'), "\n")
 
-    let l:params = '{"inputs": "' . l:escaped_prompt . '", "meta_datas": {"filename": "' . l:filename . '"}}'
+    let l:params = {
+\       "inputs": l:escaped_prompt,
+\       "meta_data": {
+\           "filename": l:filename
+\       }
+\   }
 
-    let l:tempfile = tempname()
-    call writefile([l:params], l:tempfile)
-
-    let l:server_addr = 'https://fc.fittenlab.cn/codeapi/completion/generate_one_stage/'
-
-    let l:cmd = 'curl -s -X POST -H "Content-Type: application/json" -d @' . l:tempfile . ' "' . l:server_addr . l:token . '?ide=vim&v=0.2.1"'
-    let l:response = system(l:cmd)
-
-    call delete(l:tempfile)
+    let l:server_url = 'https://fc.fittenlab.cn/codeapi/completion/generate_one_stage/'
+    let l:requst_url = l:server_url . l:token . '?ide=vim&v=0.2.1'
+    let l:response = s:post(l:requst_url, l:params)
 
     if v:shell_error
         echow "Request failed"
         return
     endif
-    let l:completion_data = json_decode(l:response)
 
-    if !has_key(l:completion_data, 'generated_text')
+    if !has_key(l:response, 'generated_text')
         return
     endif
 
-    let l:generated_text = l:completion_data.generated_text
+    let l:generated_text = l:response.generated_text
     let l:generated_text = substitute(l:generated_text, '<.endoftext.>', '', 'g')
 
     if empty(l:generated_text)
