@@ -126,16 +126,15 @@ function! CodeCompletion()
     endif
 
     let l:prompt = "!FCPREFIX!" . l:prefix . "!FCSUFFIX!" . l:suffix . "!FCMIDDLE!"
-    let l:escaped_prompt = escape(l:prompt, '\"')
     " replace \\n to \n
-    let l:escaped_prompt = substitute(l:escaped_prompt, '\\\\n', '\\n', 'g')
+    let l:prompt = substitute(l:prompt, '\\n', '\n', 'g')
     " replace \\t to \t
-    let l:escaped_prompt = substitute(l:escaped_prompt, '\t', '\\t', 'g')
+    let l:prompt = substitute(l:prompt, '\\t', '\t', 'g')
     let l:token = join(readfile($HOME . '/.vim/.FittenToken'), "\n")
 
     let l:params = {
-\       "inputs": l:escaped_prompt,
-\       "meta_data": {
+\       "inputs": l:prompt,
+\       "meta_datas": {
 \           "filename": l:filename
 \       }
 \   }
@@ -255,23 +254,13 @@ function! FittenAcceptable()
     return (mode() !~# '^[iR]' || !exists('b:fitten_suggestion')) ? 0 : 1
 endfunction
 
-if !exists('g:fitten_trigger')
-    let g:fitten_trigger = "\<C-l>"
-endif
-if !exists('g:fitten_accept_key')
-    let g:fitten_accept_key = "\<Tab>"
-endif
-if !exists('g:fitten_login_status')
-    let g:fitten_login_status = CheckLoginStatus()
-endif
-if !exists('g:fitten_auto_completion')
-    let g:fitten_auto_completion = 0
-endif
+let g:fitten_trigger         = get(g:, 'fitten_trigger',         "\<C-l>")
+let g:fitten_accept_key      = get(g:, 'fitten_accept_key',      "\<Tab>")
+let g:fitten_login_status    = get(g:, 'fitten_login_status',    CheckLoginStatus())
+let g:fitten_auto_completion = get(g:, 'fitten_auto_completion', 0) 
 function! FittenMapping()
     execute "inoremap" keytrans(g:fitten_trigger) '<Cmd>call CodeCompletion()<CR>'
-    if g:fitten_accept_key isnot v:none
-        execute 'inoremap' keytrans(g:fitten_accept_key) '<Cmd>call FittenAccept()<CR>'
-    endif
+    execute 'inoremap' keytrans(g:fitten_accept_key) '<Cmd>call FittenAccept()<CR>'
 endfunction
 
 command! FittenAutoCompletionOn let g:fitten_auto_completion = 1 | echo 'Fitten Code Auto Completion Enabled'
