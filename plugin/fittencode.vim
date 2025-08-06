@@ -19,46 +19,33 @@ function! SetSuggestionStyle() abort
     endif
 endfunction
 
-function! s:get(url, header) abort
-    let l:cmd = 'curl -s -H "' . a:header . '" "' . a:url . '"'
-    let l:response = system(l:cmd)
-    return json_decode(l:response)
-endfunction
-
-function! s:post(url, jsondata) abort
-    let l:temp = tempname()
-    call writefile([json_encode(a:jsondata)], l:temp)
-    let l:cmd = 'curl -s -X POST -H "Content-Type: application/json" -d @' . l:temp .' "' . a:url . '"'
-    let l:response = system(l:cmd)
-    call delete(l:temp)
-    return json_decode(l:response)
-endfunction
-
 function! Fittenlogin(account, password)
     let l:login_url = 'https://fc.fittenlab.cn/codeuser/login'
-    let l:data = { 
+    let l:login_data = { 
 \       "username": a:account,
 \       "password": a:password
 \   }
-    let l:login_data = s:post(l:login_url, l:data)
+    let l:login_res = util#post(l:login_url, [], l:login_data)
 
-    if v:shell_error || !has_key(l:login_data, 'code') || l:login_data.code != 200
+    if v:shell_error || !has_key(l:login_res, 'code') || l:login_res.code != 200
         echo "Login failed"
         return
     endif
 
-    let l:user_token = l:login_data.data.token
+    let l:user_token = l:login_res.data.token
 
-    let l:fico_url = 'https://fc.fittenlab.cn/codeuser/get_ft_token'
-    let l:fico_head = 'Authorization: Bearer ' . l:user_token
-    let l:fico_data = s:get(l:fico_url, l:fico_head)
+    let l:token_url = 'https://fc.fittenlab.cn/codeuser/get_ft_token'
+    let l:token_head = [
+\       ['Authorization', 'Bearer '. l:user_token]
+\   ]
+    let l:token_res = util#get(l:token_url, l:token_head)
 
-    if v:shell_error || !has_key(l:fico_data, 'data')
+    if v:shell_error || !has_key(l:token_res, 'data')
         echo "Login failed"
         return
     endif
 
-    let l:apikey = l:fico_data.data.fico_token
+    let l:apikey = l:token_res.data.fico_token
     call writefile([l:apikey], $HOME . '/.vim/.FittenToken')
 
     echo "Login successful, API key saved"
@@ -141,7 +128,7 @@ function! CodeCompletion()
 
     let l:server_url = 'https://fc.fittenlab.cn/codeapi/completion/generate_one_stage/'
     let l:requst_url = l:server_url . l:token . '?ide=vim&v=0.2.1'
-    let l:response = s:post(l:requst_url, l:params)
+    let l:response = util#post(l:requst_url, [], l:params)
 
     if v:shell_error
         echow "Request failed"
