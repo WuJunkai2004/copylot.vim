@@ -20,19 +20,19 @@ function! SetSuggestionStyle() abort
 endfunction
 
 function! Fittenlogin(account, password)
-    let l:login_url = 'https://fc.fittenlab.cn/codeuser/login'
+    let l:login_url = 'https://fc.fittenlab.cn/codeuser/auth/login'
     let l:login_data = { 
 \       "username": a:account,
 \       "password": a:password
 \   }
     let l:login_res = util#post(l:login_url, [], l:login_data)
 
-    if v:shell_error || !has_key(l:login_res, 'code') || l:login_res.code != 200
+    if v:shell_error || !has_key(l:login_res, 'user_info') || !has_key(l:login_res, 'access_token')
         echo "Login failed"
         return
     endif
 
-    let l:user_token = l:login_res.data.token
+    let l:user_token = l:login_res.user_info.token
 
     let l:token_url = 'https://fc.fittenlab.cn/codeuser/get_ft_token'
     let l:token_head = [
@@ -45,8 +45,14 @@ function! Fittenlogin(account, password)
         return
     endif
 
-    let l:apikey = l:token_res.data.fico_token
-    call writefile([l:apikey], $HOME . '/.vim/.FittenToken')
+    let l:cert = {
+\       "user_id": l:login_res.user_info.user_id,
+\       "access_token" : l:login_res.access_token,
+\       "apikey": l:token_res.data.fico_token,
+\       "user_token": l:login_res.user_info.token
+\   }
+
+    call writefile([json_encode(l:cert)], $HOME . '/.vim/.FittenToken')
 
     echo "Login successful, API key saved"
     let g:fitten_login_status = 1
@@ -117,7 +123,8 @@ function! CodeCompletion()
     let l:prompt = substitute(l:prompt, '\\n', '\n', 'g')
     " replace \\t to \t
     let l:prompt = substitute(l:prompt, '\\t', '\t', 'g')
-    let l:token = join(readfile($HOME . '/.vim/.FittenToken'), "\n")
+    let l:cert  = json_decode(join(readfile($HOME . '/.vim/.FittenToken'), "\n"))
+    let l:token = l:cert.apikey
 
     let l:params = {
 \       "inputs": l:prompt,

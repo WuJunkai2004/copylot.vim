@@ -9,7 +9,7 @@ let g:loaded_fittenutil = 1
 
 function! util#get(url, headers) abort
     let l:header_parts = []
-    for l:item in items(a:headers)
+    for l:item in a:headers
         let l:k = l:item[0]
         let l:v = l:item[1]
         call add(l:header_parts, '-H ' . shellescape(l:k . ': ' . l:v))
