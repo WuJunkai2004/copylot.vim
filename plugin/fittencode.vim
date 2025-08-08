@@ -99,6 +99,10 @@ function! ClearCompletionByCursorMoved()
 endfunction
 
 function! CodeCompletion()
+    if &filetype == g:fittenchat_name
+        return
+    endif
+
     call ClearCompletion()
 
     let l:filename = substitute(expand('%'), '\\', '/', 'g')
