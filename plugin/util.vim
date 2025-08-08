@@ -23,7 +23,7 @@ endfunction
 
 function! util#post(url, headers, datas) abort
     let l:header_parts = ['-H "Content-Type: application/json"']
-    for l:item in items(a:headers)
+    for l:item in a:headers
         let l:k = l:item[0]
         let l:v = l:item[1]
         call add(l:header_parts, '-H ' . shellescape(l:k . ': ' . l:v))
@@ -40,5 +40,50 @@ endfunction
 
 
 function! util#stream(url, headers, datas, callback) abort
+    let l:header_parts = ['-H', '"Content-Type: application/json"']
+    for l:item in a:headers
+        let l:k = l:item[0]
+        let l:v = l:item[1]
+        call extend(l:header_parts, ['-H', shellescape(l:k . ': ' . l:v)])
+    endfor
 
+    let l:tmp_file = tempname()
+    call writefile([json_encode(a:datas)], l:tmp_file)
+
+    let l:cmd = ['curl', '-s', '-N', '-X', 'POST']
+    call extend(l:cmd, l:header_parts)
+    call extend(l:cmd, ['-d', '@' . l:tmp_file])
+    call extend(l:cmd, [a:url])
+
+    let l:context = {
+\       'callback' : a:callback,
+\       'tempfile' : l:tmp_file,
+\    }
+
+    let l:opts = {
+\       'in_io' : 'close',
+\       'out_io': 'pipe',
+\       'out_cb': function('s:on_stdout', [], l:context),
+\       'exit_cb': function('s:on_exit', [], l:context),
+\   }
+
+    return job_start(l:cmd, l:opts)
+endfunction
+
+function! s:on_stdout(job, msg) dict abort
+    let l:user_callback = self.user_callback
+    call l:user_callback(a:msg)
+endfunction
+
+function! s:on_exit(job, msg) dict abort
+    " a. 从绑定的字典中获取临时文件名并清理
+    let l:tmp_file = self.temp_file
+    if filereadable(l:tmp_file)
+        call delete(l:tmp_file)
+    endif
+endfunction
+
+
+function! util#decode(string) abort
+    return substitute(a:string, '\\u\x\{4}', '\=nr2char(str2nr(submatch(1), 16))', 'g')
 endfunction
