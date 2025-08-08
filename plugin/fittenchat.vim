@@ -58,22 +58,35 @@ function! FittenPrint(string) abort
     execute l:win_nr . 'wincmd w'
     setlocal modifiable
     let l:strings = split(a:string, "\n", v:true)
-    let l:text = getline(g:fittenchat_data.entry_border) . l:strings[0]
-    call setline(g:fittenchat_data.entry_border, l:text)
+    let l:text = getline('$') . l:strings[0]
+    call setline(line('$'), l:text)
     call append('$', l:strings[1:])
     let g:fittenchat_data.entry_border = line('$')
     setlocal nomodifiable
 endfunction
 
 function! FittenChatEntryStart() abort
-    call FittenPrint("> question:\n")
+    call FittenPrint("> _question:_\n")
     setlocal modifiable
     let g:fittenchat_data.entry_border = line('$') - 1
     let g:fittenchat_data.cursor_lin = line('$')
-    let g:fittenchat_data.cursor_col = 0
+    let g:fittenchat_data.cursor_col = 1
     call cursor(g:fittenchat_data.cursor_lin, g:fittenchat_data.cursor_col)
     call s:SwitchMode('entry')
-    execute 'startinsert'
+    startinsert
+endfunction
+
+function! FittenChatEntryEnd() abort
+    if line('.') != line('$') || !empty(getline(line('.')))
+        call feedkeys("\<CR>", 'n')
+        return
+    endif
+    call s:SwitchMode('show')
+    setlocal nomodifiable
+    let l:context = join(getline(g:fittenchat_data.entry_border + 1, line('$') - 1), "\n")
+    call FittenPrint("> _answer:_\n")
+    call FittenQuery(l:context)
+    stopinsert
 endfunction
 
 
@@ -88,8 +101,7 @@ function! s:SwitchMode(new_mode) abort
     elseif a:new_mode == 'entry'
         nnoremap <buffer><silent> <CR> :call FittenChatEntryEnd()<CR>
         inoremap <buffer><silent> <CR> <C-O>:call FittenChatEntryEnd()<CR>
-        inoremap <buffer><silent> <S-Enter> <CR>
-        inoremap <buffer><expr><silent> <Del> <SID>s:GuardDelete()
+        inoremap <buffer><expr><silent> <Bs> <SID>GuardDelete()
         augroup FittenChatEvents
             autocmd!
             autocmd CursorMoved,CursorMovedI <buffer> call s:GuardCursor()
@@ -101,8 +113,7 @@ function! s:ClearMapping() abort
     silent! nunmap <buffer> q
     silent! nunmap <buffer> <CR>
     silent! iunmap <buffer> <CR>
-    silent! iunmap <buffer> <S-Enter>
-    silent! iunmap <buffer> <Del>
+    silent! iunmap <buffer> <Bs>
     silent! autocmd! FittenChatEvents
 endfunction
 
@@ -125,8 +136,14 @@ function! s:GuardCursor() abort
 endfunction
 
 function! s:GuardDelete() abort
-    if line('.') == g:fittenchat_data.entry_border + 1 && col('.') == 0
+    if line('.') == g:fittenchat_data.entry_border + 1 && col('.') == 1
         return ""
     endif
-    return "\<Del>"
+    return "\<Bs>"
+endfunction
+
+
+function! FittenQuery(question) abort
+    call FittenPrint(a:question . "\n")
+    call FittenPrint(repeat('—', 21) . "\n")
 endfunction
