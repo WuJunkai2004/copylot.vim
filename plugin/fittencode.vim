@@ -99,7 +99,7 @@ function! ClearCompletionByCursorMoved()
 endfunction
 
 function! CodeCompletion()
-    if &filetype == g:fittenchat_name
+    if &filetype == 'fittenchat'
         return
     endif
 
@@ -107,9 +107,8 @@ function! CodeCompletion()
 
     let l:filename = substitute(expand('%'), '\\', '/', 'g')
 
-    let l:file_content = join(getline(1, '$'), "\n")
     let l:line_num = line('.')
-    let l:col_num = getcurpos()[2]
+    let l:col_num = col('.')
 
     let l:prefix = join(getline(1, l:line_num - 1), '\n')
     if !empty(l:prefix)
