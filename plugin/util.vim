@@ -61,7 +61,6 @@ function! util#stream(url, headers, datas, callback) abort
 \    }
 
     let l:opts = {
-\       'in_io' : 'close',
 \       'out_io': 'pipe',
 \       'out_cb': function('s:on_stdout', [], l:context),
 \       'exit_cb': function('s:on_exit', [], l:context),
@@ -71,15 +70,14 @@ function! util#stream(url, headers, datas, callback) abort
 endfunction
 
 function! s:on_stdout(job, msg) dict abort
-    let l:user_callback = self.user_callback
-    call l:user_callback(a:msg)
+    let l:The_callback = self.callback
+    call l:The_callback(a:msg)
 endfunction
 
 function! s:on_exit(job, msg) dict abort
     " a. 从绑定的字典中获取临时文件名并清理
-    let l:tmp_file = self.temp_file
-    if filereadable(l:tmp_file)
-        call delete(l:tmp_file)
+    if filereadable(self.tempfile)
+        call delete(self.tempfile)
     endif
 endfunction
 
