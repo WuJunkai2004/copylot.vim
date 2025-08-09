@@ -15,7 +15,7 @@ function! util#get(url, headers) abort
         call add(l:header_parts, '-H ' . shellescape(l:k . ': ' . l:v))
     endfor
 
-    let l:cmd = 'curl -s ' . join(l:header_parts, ' ') . ' ' . shellescape(a:url)
+    let l:cmd = 'curl --connect-timeout 10 -m 30 -s ' . join(l:header_parts, ' ') . ' ' . shellescape(a:url)
     let l:response = system(l:cmd)
     return json_decode(l:response)
 endfunction
@@ -32,7 +32,7 @@ function! util#post(url, headers, datas) abort
     let l:tmp_file = tempname()
     call writefile([json_encode(a:datas)], l:tmp_file)
 
-    let l:cmd = 'curl -s -X POST ' . join(l:header_parts, ' ') . ' -d @' . l:tmp_file . ' ' . shellescape(a:url)
+    let l:cmd = 'curl --connect-timeout 10 -m 30 -s -X POST ' . join(l:header_parts, ' ') . ' -d @' . l:tmp_file . ' ' . shellescape(a:url)
     let l:response = system(l:cmd)
     call delete(l:tmp_file)
     return json_decode(l:response)
@@ -50,7 +50,7 @@ function! util#stream(url, headers, datas, callback) abort
     let l:tmp_file = tempname()
     call writefile([json_encode(a:datas)], l:tmp_file)
 
-    let l:cmd = ['curl', '-s', '-N', '-X', 'POST']
+    let l:cmd = ['curl', '--connect-timeout', '10', '-s', '-N', '-X', 'POST']
     call extend(l:cmd, l:header_parts)
     call extend(l:cmd, ['-d', '@' . l:tmp_file])
     call extend(l:cmd, [a:url])
