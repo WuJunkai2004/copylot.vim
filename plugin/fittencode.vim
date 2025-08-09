@@ -27,7 +27,7 @@ function! Fittenlogin(account, password)
 \   }
     let l:login_res = util#post(l:login_url, [], l:login_data)
 
-    if v:shell_error || !has_key(l:login_res, 'user_info') || !has_key(l:login_res, 'access_token')
+    if v:shell_error || !has_key(l:login_res, 'user_info') || !has_key(l:login_res, 'refresh_token')
         echo "Login failed"
         return
     endif
@@ -47,7 +47,7 @@ function! Fittenlogin(account, password)
 
     let l:cert = {
 \       "user_id": l:login_res.user_info.user_id,
-\       "access_token" : l:login_res.access_token,
+\       "refresh_token" : l:login_res.refresh_token,
 \       "apikey": l:token_res.data.fico_token,
 \       "user_token": l:login_res.user_info.token
 \   }
@@ -126,7 +126,7 @@ function! CodeCompletion()
     let l:prompt = substitute(l:prompt, '\\n', '\n', 'g')
     " replace \\t to \t
     let l:prompt = substitute(l:prompt, '\\t', '\t', 'g')
-    let l:cert  = json_decode(join(readfile($HOME . '/.vim/.FittenToken'), "\n"))
+    let l:cert = json_decode(join(readfile($HOME . '/.vim/.FittenToken'), "\n"))
     let l:token = l:cert.apikey
 
     let l:params = {

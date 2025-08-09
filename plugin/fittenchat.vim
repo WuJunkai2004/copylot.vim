@@ -6,12 +6,20 @@ if exists("g:loaded_fittenchat")
 endif
 let g:loaded_fittenchat = 1
 let g:fittenchat_name = 'FittenChatBar'
+let g:fittenchat_lang = get(g:, 'fittenchat_lang', 'zh')
+let g:fittenchat_prom = {
+\   'zh': "请完全使用中文回答。",
+\   'en': "Please use English to answer."
+\}
 let g:fittenchat_data = {
 \   'entry_border': 1,
 \   'cursor_lin': 0,
 \   'cursor_col': 0,
 \   'is_welcame': v:false,
 \   'mode': 'uninit',
+\   'apikey' : '',
+\   'access' : '',
+\   'history': []
 \}
 
 function! FittenChatToggle() abort
@@ -29,6 +37,7 @@ function! FittenChatToggle() abort
 
     if !g:fittenchat_data.is_welcame
         call FittenPrint("Welcome to __FittenCode__!\n'q' for ask questions\n" . repeat('=', 21) . "\n")
+        call FittenRefresh()
         let g:fittenchat_data.is_welcame = v:true
     endif
 
@@ -50,13 +59,17 @@ function! FittenChatResize()
     endif
 endfunction
 
-function! FittenPrint(string) abort
+function! FittenPrint(string, ...) abort
     let l:win_nr = bufwinnr('^' . g:fittenchat_name . '$')
     if l:win_nr == -1
         return
     endif
     execute l:win_nr . 'wincmd w'
     setlocal modifiable
+    let l:force_new_line = a:0 > 0 ? a:1 : v:false
+    if l:force_new_line
+        call append('$', '')
+    endif
     let l:strings = split(a:string, "\n", v:true)
     let l:text = getline('$') . l:strings[0]
     call setline(line('$'), l:text)
@@ -81,7 +94,7 @@ function! FittenChatEntryEnd() abort
         call feedkeys("\<CR>", 'n')
         return
     endif
-    call s:SwitchMode('show')
+    call s:SwitchMode('answer')
     setlocal nomodifiable
     let l:context = join(getline(g:fittenchat_data.entry_border + 1, line('$') - 1), "\n")
     call FittenPrint("> _answer:_\n")
@@ -130,7 +143,7 @@ function! s:GuardCursor() abort
         while line('$') < g:fittenchat_data.cursor_lin
             call append('$', '')
         endwhile
-        let g:fittenchat_data.cursor_col = 0
+        let g:fittenchat_data.cursor_col = 1
     endif
     call cursor(g:fittenchat_data.cursor_lin, g:fittenchat_data.cursor_col)
 endfunction
@@ -142,8 +155,81 @@ function! s:GuardDelete() abort
     return "\<Bs>"
 endfunction
 
+function! s:AnswerGet(msg) abort
+    "call FittenPrint("[Get]: " . a:msg . "\n")
+    let l:res = json_decode(a:msg)
+    if has_key(l:res, 'usage')
+        call FittenPrint(repeat('—', 21) . "\n", v:true)
+        call s:SwitchMode('show')
+        return
+    endif
+    if has_key(l:res, 'detail')
+        call FittenPrint("[error]: " . l:res.detail . "\n", v:true)
+        call FittenPrint(repeat('—', 21) . "\n")
+        return
+    endif
+    let l:msg = util#decode(l:res.message)
+    let g:fittenchat_data.history[-1].asst .= l:msg
+    call FittenPrint(l:msg)
+endfunction
+
+
+function! FittenRefresh() abort
+    let l:cert = json_decode(join(readfile($HOME . '/.vim/.FittenToken'), "\n"))
+    let g:fittenchat_data.apikey = l:cert.user_id
+
+    let l:refresh_url = 'https://fc.fittenlab.cn/codeuser/auth/refresh_access_token'
+    let l:refresh_data = {}
+    let l:refresh_head = [
+\       ["Authorization", "Bearer " . l:cert.refresh_token]
+\   ]
+
+    let l:refresh_res = util#post(l:refresh_url, l:refresh_head, l:refresh_data)
+
+    if has_key(l:refresh_res, 'access_token')
+        let g:fittenchat_data.access = l:refresh_res.access_token
+        return v:true
+    endif
+    return v:false
+endfunction
+
+function! FittenPrompt(quesion) abort
+    let l:prompt = []
+
+    let l:system = get(g:fittenchat_prom, g:fittenchat_lang, g:fittenchat_prom.zh)
+    call add(l:prompt, "<|system|>\n" . l:system . "\n<|end|>")
+
+    let l:history = []
+    for l:item in g:fittenchat_data.history
+        let l:local = "<|user|>\n" . l:item.user . "\n<|end|>\n<|assistant|>\n" . l:item.asst . "\n<|end|>"
+    endfor
+    if !empty(l:history)
+        call add(l:prompt, join(l:history, "\n"))
+    endif
+    call add(g:fittenchat_data.history, {"user": a:quesion, "asst": ""})
+
+    call add(l:prompt, "<|user|>\n" . a:quesion . "\n<|end|>\n<|assistant|>\n")
+
+    return join(l:prompt, "\n")
+endfunction
 
 function! FittenQuery(question) abort
-    call FittenPrint(a:question . "\n")
-    call FittenPrint(repeat('—', 21) . "\n")
+    if empty(g:fittenchat_data.access)
+        if !FittenRefresh()
+            call FittenPrint("*[error]: access token refresh failed"
+            return
+        endif
+    endif
+
+    let l:base_url = 'https://fc.fittenlab.cn/codeapi/chat_auth'
+    let l:chat_url = l:base_url . '?apikey=' . g:fittenchat_data.apikey
+    let l:chat_head = [
+\       ['Authorization', 'Bearer ' . g:fittenchat_data.access]
+\   ]
+    let l:chat_data = {
+\       "inputs": FittenPrompt(a:question),
+\       "ft_token": g:fittenchat_data.apikey
+\   }
+
+    call util#stream(l:chat_url, l:chat_head, l:chat_data, function('s:AnswerGet'))
 endfunction

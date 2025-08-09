@@ -40,11 +40,11 @@ endfunction
 
 
 function! util#stream(url, headers, datas, callback) abort
-    let l:header_parts = ['-H', '"Content-Type: application/json"']
+    let l:header_parts = ['-H', 'Content-Type: application/json']
     for l:item in a:headers
         let l:k = l:item[0]
         let l:v = l:item[1]
-        call extend(l:header_parts, ['-H', shellescape(l:k . ': ' . l:v)])
+        call extend(l:header_parts, ['-H', l:k . ': ' . l:v])
     endfor
 
     let l:tmp_file = tempname()
@@ -75,7 +75,6 @@ function! s:on_stdout(job, msg) dict abort
 endfunction
 
 function! s:on_exit(job, msg) dict abort
-    " a. 从绑定的字典中获取临时文件名并清理
     if filereadable(self.tempfile)
         call delete(self.tempfile)
     endif
