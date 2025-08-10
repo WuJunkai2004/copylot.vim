@@ -21,7 +21,7 @@ endfunction
 
 function! Fittenlogin(account, password)
     let l:login_url = 'https://fc.fittenlab.cn/codeuser/auth/login'
-    let l:login_data = { 
+    let l:login_data = {
 \       "username": a:account,
 \       "password": a:password
 \   }
@@ -254,7 +254,7 @@ endfunction
 let g:fitten_trigger         = get(g:, 'fitten_trigger',         "\<C-l>")
 let g:fitten_accept_key      = get(g:, 'fitten_accept_key',      "\<Tab>")
 let g:fitten_login_status    = get(g:, 'fitten_login_status',    CheckLoginStatus())
-let g:fitten_auto_completion = get(g:, 'fitten_auto_completion', 0) 
+let g:fitten_auto_completion = get(g:, 'fitten_auto_completion', 0)
 function! FittenMapping()
     execute "inoremap" keytrans(g:fitten_trigger) '<Cmd>call CodeCompletion()<CR>'
     execute 'inoremap' keytrans(g:fitten_accept_key) '<Cmd>call FittenAccept()<CR>'

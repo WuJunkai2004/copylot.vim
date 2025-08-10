@@ -3,7 +3,7 @@
 
 if exists("g:loaded_fittenutil")
     finish
-endif  
+endif
 let g:loaded_fittenutil = 1
 
 

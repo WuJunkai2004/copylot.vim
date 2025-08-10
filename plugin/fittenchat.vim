@@ -168,7 +168,7 @@ function! s:AnswerGet(msg) abort
         call FittenPrint(repeat('—', 21) . "\n")
         return
     endif
-    let l:msg = util#decode(l:res.message)
+    let l:msg = util#decode(l:res.delta)
     let g:fittenchat_data.history[-1].asst .= l:msg
     call FittenPrint(l:msg)
 endfunction
