@@ -272,6 +272,17 @@ function! FittenPrompt(quesion) abort
 endfunction
 
 function! FittenQuery(question) abort
+    if empty(a:question)
+        setlocal modifiable
+        $delete
+        $delete
+        $delete
+        call append('$', "")
+        call cursor(line('$'), 1)
+        setlocal nomodifiable
+        call s:SwitchMode('show')
+        return
+    endif
     if empty(g:fittenchat_data.access)
         if !FittenRefresh()
             call FittenPrint("__[error]__: access token refresh failed\n", v:true)
