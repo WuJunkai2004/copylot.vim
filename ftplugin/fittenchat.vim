@@ -17,7 +17,6 @@ setlocal norelativenumber
 setlocal signcolumn=no
 setlocal nomodifiable
 
-nnoremap <buffer><silent> <CR> :call FittenClick()<CR>
 nnoremap <buffer><silent> <LeftMouse> <LeftMouse>:call FittenClick()<CR>
 
 " 高亮

@@ -112,6 +112,7 @@ function! s:SwitchMode(new_mode) abort
     call s:DisableInsert()
     let g:fittenchat_data['mode'] = a:new_mode
     if a:new_mode == 'show'
+        nnoremap <buffer><silent> <CR> :call FittenClick()<CR>
         nnoremap <buffer><silent> q :call FittenChatEntryStart()<CR>
     elseif a:new_mode == 'entry'
         call s:EnableInsert()
@@ -215,7 +216,7 @@ function! s:AddButton() abort
     echom "scan code block from " . g:fittenchat_data.answer_border . " to " . line('$')
     for l:lnum in range(g:fittenchat_data.answer_border, line('$') - 1)
         let l:str = getline(l:lnum)
-        if match(l:str, '^```') == 0
+        if l:str =~# '^```'
             if l:is_upper_code_border
                 let l:str .= "  [copy] [apply]"
                 setlocal modifiable
@@ -225,6 +226,40 @@ function! s:AddButton() abort
             let l:is_upper_code_border = !l:is_upper_code_border
         endif
     endfor
+endfunction
+
+function! s:GetCodeBlock() abort
+    let l:code_line = line('.') + 1
+    let l:code = []
+    while l:code_line <= line('$')
+        let l:code_str = getline(l:code_line)
+        if l:code_str =~# '^```'
+            break
+        endif
+        call add(l:code, l:code_str)
+        let l:code_line += 1
+    endwhile
+    return l:code
+endfunction
+
+function! s:CopyCode() abort
+    let l:code = s:GetCodeBlock()
+    let l:code_string = join(l:code, "\n")
+    if has('clipboard')
+        let @+ = l:code_string
+    else
+        let @" = l:code_string
+        let @c = l:code_string
+    endif
+endfunction
+
+function! s:ApplyCode() abort
+    if winnr('#') == 0
+        return
+    endif
+    let l:code = s:GetCodeBlock()
+    wincmd p
+    call append(line('.'), l:code)
 endfunction
 
 
@@ -276,13 +311,13 @@ function! FittenQuery(question) abort
         setlocal modifiable
         $delete
         $delete
-        $delete
-        call append('$', "")
+        call setline(line('$'), "")
         call cursor(line('$'), 1)
         setlocal nomodifiable
         call s:SwitchMode('show')
         return
     endif
+
     if empty(g:fittenchat_data.access)
         if !FittenRefresh()
             call FittenPrint("__[error]__: access token refresh failed\n", v:true)
@@ -306,5 +341,35 @@ function! FittenQuery(question) abort
 endfunction
 
 function! FittenClick() abort
+    let l:cur_lin = line('.')
+    let l:cur_col = col('.')
+    let l:str = getline(l:cur_lin)
 
+    if l:str !~# '^```'
+        return
+    endif
+
+    let l:button_text = ""
+    let l:start_search_col = 1
+    while l:start_search_col
+        let l:match_info = matchstrpos(l:str, '\[.\{-}\]', l:start_search_col)
+        if empty(l:match_info[0])
+            break
+        endif
+
+        let l:match_left = l:match_info[1]
+        let l:match_right = l:match_info[2]
+
+        if l:match_left + 1 < l:cur_col && l:cur_col <= l:match_right
+            let l:button_text = l:match_info[0]
+            break
+        endif
+        let l:start_search_col = l:match_right
+    endwhile
+
+    if l:button_text == "[copy]"
+        call s:CopyCode()
+    elseif l:button_text == "[apply]"
+        call s:ApplyCode()
+    endif
 endfunction
