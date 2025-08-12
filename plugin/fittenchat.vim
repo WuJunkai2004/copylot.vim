@@ -200,7 +200,7 @@ function! s:AnswerGet(msg) abort
         return
     endif
     if has_key(l:res, 'detail')
-        call FittenPrint("[error]: " . l:res.detail . "\n", v:true)
+        call FittenPrint("__[error]__: " . l:res.detail . "\n", v:true)
         call FittenPrint(repeat('—', 21) . "\n")
         return
     endif
@@ -211,6 +211,10 @@ endfunction
 
 
 function! FittenRefresh() abort
+    if !filereadable($HOME . '/.vim/.FittenToken')
+        call FittenPrint("__[error]__: Did not login. Please use `:Fittenlogin <username> <password>` to login\n", v:true)
+        return v:false
+    endif
     let l:cert = json_decode(join(readfile($HOME . '/.vim/.FittenToken'), "\n"))
     let g:fittenchat_data.apikey = l:cert.user_id
 
@@ -252,7 +256,7 @@ endfunction
 function! FittenQuery(question) abort
     if empty(g:fittenchat_data.access)
         if !FittenRefresh()
-            call FittenPrint("*[error]: access token refresh failed"
+            call FittenPrint("__[error]__: access token refresh failed\n", v:true)
             return
         endif
     endif
