@@ -17,17 +17,14 @@ setlocal norelativenumber
 setlocal signcolumn=no
 setlocal nomodifiable
 
-" 静态映射：设置“只读”模式下的快捷键
-nnoremap <buffer><silent> i <Nop>
-nnoremap <buffer><silent> a <Nop>
-nnoremap <buffer><silent> o <Nop>
-nnoremap <buffer><silent> v <Nop>
-nnoremap <buffer><silent> V <Nop>
-nnoremap <buffer><silent> <C-v> <Nop>
-nnoremap <buffer><silent> <CR> :call fittenchat#handle_button_click()<CR>
+nnoremap <buffer><silent> <CR> :call FittenClick()<CR>
+nnoremap <buffer><silent> <LeftMouse> <LeftMouse>:call FittenClick()<CR>
 
-" 语法和高亮
-syntax match FittenButton "\[.\{-}\]"
+" 高亮
+syntax match FittenCodeFenceLine "^```.*" contains=FittenButton,FittenCodeFence
+syntax match FittenCodeFence "^```\s*\w*" contained
+syntax match FittenButton "\[.\{-}\]" contained
+highlight default FittenCodeFence ctermfg=lightred guifg=#FF8888
 highlight def link FittenButton Question
 
 let b:current_syntax = "fittenchat"

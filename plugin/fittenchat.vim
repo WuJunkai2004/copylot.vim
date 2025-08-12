@@ -108,10 +108,12 @@ function! s:SwitchMode(new_mode) abort
         return
     endif
     call s:ClearMapping()
+    call s:DisableInsert()
     let g:fittenchat_data['mode'] = a:new_mode
     if a:new_mode == 'show'
         nnoremap <buffer><silent> q :call FittenChatEntryStart()<CR>
     elseif a:new_mode == 'entry'
+        call s:EnableInsert()
         nnoremap <buffer><silent> <CR> :call FittenChatEntryEnd()<CR>
         inoremap <buffer><silent> <CR> <C-O>:call FittenChatEntryEnd()<CR>
         inoremap <buffer><expr><silent> <Bs> <SID>GuardDelete()
@@ -128,6 +130,40 @@ function! s:ClearMapping() abort
     silent! iunmap <buffer> <CR>
     silent! iunmap <buffer> <Bs>
     silent! autocmd! FittenChatEvents
+endfunction
+
+function! s:DisableInsert() abort
+    " 禁用 Insert 模式系列按键
+    nnoremap <buffer><silent> i <Nop>
+    nnoremap <buffer><silent> I <Nop>
+    nnoremap <buffer><silent> a <Nop>
+    nnoremap <buffer><silent> A <Nop>
+    nnoremap <buffer><silent> o <Nop>
+    nnoremap <buffer><silent> O <Nop>
+    " 禁用 Substitute/Change 模式系列按键
+    nnoremap <buffer><silent> s <Nop>
+    nnoremap <buffer><silent> S <Nop>
+    nnoremap <buffer><silent> c <Nop>
+    nnoremap <buffer><silent> C <Nop>
+    " 禁用 Replace 模式系列按键
+    nnoremap <buffer><silent> R <Nop>
+endfunction
+
+function! s:EnableInsert() abort
+    " 恢复 Insert 模式系列按键
+    silent! nunmap <buffer> i
+    silent! nunmap <buffer> I
+    silent! nunmap <buffer> a
+    silent! nunmap <buffer> A
+    silent! nunmap <buffer> o
+    silent! nunmap <buffer> O
+    " 恢复 Substitute/Change 模式系列按键
+    silent! nunmap <buffer> s
+    silent! nunmap <buffer> S
+    silent! nunmap <buffer> c
+    silent! nunmap <buffer> C
+    " 恢复 Replace 模式系列按键
+    silent! nunmap <buffer> R
 endfunction
 
 function! s:GuardCursor() abort
@@ -232,4 +268,8 @@ function! FittenQuery(question) abort
 \   }
 
     call util#stream(l:chat_url, l:chat_head, l:chat_data, function('s:AnswerGet'))
+endfunction
+
+function! FittenClick() abort
+
 endfunction
