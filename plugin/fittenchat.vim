@@ -13,6 +13,7 @@ let g:fittenchat_prom = {
 \}
 let g:fittenchat_data = {
 \   'entry_border': 1,
+\   'answer_border': 0,
 \   'cursor_lin': 0,
 \   'cursor_col': 0,
 \   'is_welcame': v:false,
@@ -191,12 +192,12 @@ function! s:GuardDelete() abort
     return "\<Bs>"
 endfunction
 
-function! s:AnswerGet(msg) abort
-    "call FittenPrint("[Get]: " . a:msg . "\n")
+function! s:GetAnswer(msg) abort
     let l:res = json_decode(a:msg)
     if has_key(l:res, 'usage')
         call FittenPrint(repeat('—', 21) . "\n", v:true)
         call s:SwitchMode('show')
+        call s:AddButton()
         return
     endif
     if has_key(l:res, 'detail')
@@ -207,6 +208,23 @@ function! s:AnswerGet(msg) abort
     let l:msg = util#decode(l:res.delta)
     let g:fittenchat_data.history[-1].asst .= l:msg
     call FittenPrint(l:msg)
+endfunction
+
+function! s:AddButton() abort
+    let l:is_upper_code_border = 1
+    echom "scan code block from " . g:fittenchat_data.answer_border . " to " . line('$')
+    for l:lnum in range(g:fittenchat_data.answer_border, line('$') - 1)
+        let l:str = getline(l:lnum)
+        if match(l:str, '^```') == 0
+            if l:is_upper_code_border
+                let l:str .= "  [copy] [apply]"
+                setlocal modifiable
+                call setline(l:lnum, l:str)
+                setlocal nomodifiable
+            endif
+            let l:is_upper_code_border = !l:is_upper_code_border
+        endif
+    endfor
 endfunction
 
 
@@ -261,6 +279,8 @@ function! FittenQuery(question) abort
         endif
     endif
 
+    let g:fittenchat_data.answer_border = line('$')
+
     let l:base_url = 'https://fc.fittenlab.cn/codeapi/chat_auth'
     let l:chat_url = l:base_url . '?apikey=' . g:fittenchat_data.apikey
     let l:chat_head = [
@@ -271,7 +291,7 @@ function! FittenQuery(question) abort
 \       "ft_token": g:fittenchat_data.apikey
 \   }
 
-    call util#stream(l:chat_url, l:chat_head, l:chat_data, function('s:AnswerGet'))
+    call util#stream(l:chat_url, l:chat_head, l:chat_data, function('s:GetAnswer'))
 endfunction
 
 function! FittenClick() abort
