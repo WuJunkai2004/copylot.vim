@@ -114,6 +114,7 @@ function! s:SwitchMode(new_mode) abort
     if a:new_mode == 'show'
         nnoremap <buffer><silent> <CR> :call FittenClick()<CR>
         nnoremap <buffer><silent> q :call FittenChatEntryStart()<CR>
+        nnoremap <buffer><silent> h :call <SID>PrintHelp()<CR>
     elseif a:new_mode == 'entry'
         call s:EnableInsert()
         nnoremap <buffer><silent> <CR> :call FittenChatEntryEnd()<CR>
@@ -128,6 +129,7 @@ endfunction
 
 function! s:ClearMapping() abort
     silent! nunmap <buffer> q
+    silent! nunmap <buffer> h
     silent! nunmap <buffer> <CR>
     silent! iunmap <buffer> <CR>
     silent! iunmap <buffer> <Bs>
@@ -166,6 +168,15 @@ function! s:EnableInsert() abort
     silent! nunmap <buffer> C
     " 恢复 Replace 模式系列按键
     silent! nunmap <buffer> R
+endfunction
+
+function! s:PrintHelp() abort
+    call FittenPrint("'q' for ask questions\n")
+    call FittenPrint("'h' for help\n")
+    call FittenPrint("'f' to select file content\n")
+    call FittenPrint("double <cr> to commit question\n")
+    call FittenPrint("<cr> or click button to use it\n")
+    call FittenPrint(repeat('—', 21) . "\n")
 endfunction
 
 function! s:GuardCursor() abort
