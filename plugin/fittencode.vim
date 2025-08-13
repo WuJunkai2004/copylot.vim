@@ -165,15 +165,15 @@ function! CodeCompletion()
     let l:text = map(l:text, 'substitute(v:val, "\t", repeat(" ", &ts), "g")')
 
     let l:is_first_line = v:true
-    for line in text
-        if empty(line)
-            let line = " "
+    for l:line in l:text
+        if empty(l:line)
+            let l:line = " "
         endif
         if l:is_first_line is v:true
             let l:is_first_line = v:false
-            call prop_add(line('.'), l:col_num, {'type': s:hlgroup, 'text': line})
+            call prop_add(line('.'), l:col_num, {'type': s:hlgroup, 'text': l:line})
         else
-            call prop_add(line('.'), 0, {'type': s:hlgroup, 'text_align': 'below', 'text': line})
+            call prop_add(line('.'), 0, {'type': s:hlgroup, 'text_align': 'below', 'text': l:line})
         endif
     endfor
 
