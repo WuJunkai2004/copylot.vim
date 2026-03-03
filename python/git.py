@@ -3,7 +3,7 @@ import subprocess
 
 def gitLog(n: int = 5) -> str:
     try:
-        return subprocess.check_output(["git", "log", f"-n {n}"]).decode("utf-8")
+        return subprocess.check_output(["git", "log", "-n", str(n)]).decode("utf-8")
     except subprocess.CalledProcessError as e:
         return f"An error occurred: {e}"
 

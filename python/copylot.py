@@ -1,13 +1,12 @@
 import json
 import os
 import sys
-import traceback
 
-from .git import gitDiff, gitLog
-from .provider import ProviderBuild
+from git import gitDiff, gitLog
+from provider import ProviderBuild
 
 
-class CopyLotDaemon:
+class CopylotDaemon:
     def __init__(self, config_path: str | None = None):
         # Determine config path: Priority 1. Constructor 2. Default ~/.vim/ai_config.toml
         if (
@@ -28,7 +27,7 @@ class CopyLotDaemon:
         sys.stderr.write(f"LOG: {msg}\n")
         sys.stderr.flush()
 
-    def send_response(self, resp_type: str, content):
+    def response(self, resp_type: str, content):
         """Sends a JSON response with Content-Length header."""
         # type: answer, ends, error, gitmsg
         response_obj = {"type": resp_type, "content": content}
@@ -41,35 +40,30 @@ class CopyLotDaemon:
     def handle_query(self, content: list):
         """Handle 'query' action."""
         if not self.provider:
-            self.send_response("error", "Provider not initialized. Check your config.")
+            self.response("error", "Provider not initialized. Check your config.")
             return
 
         # content is expected to be a list of messages: [{"role": "user", "content": "..."}]
         if not isinstance(content, list):
-            self.send_response("error", "Content must be a list of messages.")
+            self.response("error", "Content must be a list of messages.")
             return
 
         try:
             ai_res = self.provider.send(content)
-            if ai_res is None:
-                self.send_response("error", "AI returned None.")
-            else:
-                self.send_response("answer", ai_res)
+            self.response("answer", ai_res)
         except Exception as e:
-            self.send_response("error", f"AI Provider Error: {str(e)}")
-        finally:
-            self.send_response("ends", "")
+            self.response("error", f"AI Provider Error: {e}")
 
     def handle_stop(self):
         """Handle 'stop' action."""
         # Placeholder for stopping current generation if streaming is implemented
         self.log("Stop requested (not fully implemented)")
-        self.send_response("ends", "")
+        self.response("ends", "")
 
     def handle_commit_message(self):
         """Handle 'commit_message' action."""
         if not self.provider:
-            self.send_response("error", "Provider not initialized.")
+            self.response("error", "Provider not initialized.")
             return
 
         try:
@@ -83,9 +77,7 @@ class CopyLotDaemon:
 
             history = gitLog(n=10)
             if not diff.strip() or diff.startswith("An error occurred"):
-                self.send_response(
-                    "answer", f"No staged changes found or error: {diff}"
-                )
+                self.response("answer", f"No staged changes found or error: {diff}")
             else:
                 prompt = (
                     f"The following is the user's recent commit history:\n"
@@ -102,18 +94,18 @@ class CopyLotDaemon:
                     {"role": "user", "content": prompt},
                 ]
                 ai_res = self.provider.send(messages)
-                self.send_response("gitmsg", ai_res)
+                self.response("gitmsg", ai_res)
         except Exception as e:
-            self.send_response("error", f"Git Commit Error: {str(e)}")
+            self.response("error", f"Git Commit Error: {str(e)}")
         finally:
-            self.send_response("ends", "")
+            self.response("ends", "")
 
     def handle_mcp(self, content):
         """Placeholder for Model Context Protocol (MCP) support."""
         # Future implementation for MCP
         self.log(f"MCP action received: {content}")
-        self.send_response("error", "MCP support is not yet implemented.")
-        self.send_response("ends", "")
+        self.response("error", "MCP support is not yet implemented.")
+        self.response("ends", "")
 
     def dispatch(self, msg):
         """Dispatch message to appropriate handler based on 'action'."""
@@ -129,49 +121,50 @@ class CopyLotDaemon:
         elif action == "mcp":
             self.handle_mcp(content)
         else:
-            self.send_response("error", f"Unknown action: {action}")
-            self.send_response("ends", "")
+            self.response("error", f"Unknown action: {action}")
+            self.response("ends", "")
 
-    def mainloop(self):
-        while True:
+    def read(self) -> tuple[dict | None, str | None]:
+        """Reads a message from stdin and returns the parsed JSON and error string."""
+        try:
+            line = sys.stdin.buffer.readline()
+            if not line:
+                return None, "EOF"
+            if not line.startswith(b"Content-Length:"):
+                return None, f"Invalid header: {line!r}"
+
             try:
-                # Read Headers
-                line = sys.stdin.readline()
-                if not line:
+                length = int(line.split(b":")[1].strip())
+            except (IndexError, ValueError):
+                return None, f"Invalid length in header: {line!r}"
+
+            # Skip the rest of the headers (until \r\n\r\n)
+            while True:
+                line = sys.stdin.buffer.readline()
+                if not line or line == b"\r\n" or line == b"\n":
                     break
 
-                content_length = None
-                if line.lower().startswith("content-length:"):
-                    try:
-                        content_length = int(line.split(":")[1].strip())
-                    except ValueError:
-                        pass
+            body = sys.stdin.buffer.read(length)
+            if len(body) < length:
+                return None, f"Short read: expected {length}, got {len(body)}"
 
-                # Consume remaining headers until empty line
-                while line.strip():
-                    line = sys.stdin.readline()
-                    if not line:
-                        break
+            return json.loads(body.decode("utf-8")), None
+        except Exception as e:
+            return None, str(e)
 
-                if content_length is None:
-                    continue
-
-                # Read Body
-                body_data = sys.stdin.read(content_length)
-                if not body_data:
+    def run(self):
+        while True:
+            msg, err = self.read()
+            if err:
+                if err == "EOF":
                     break
-
-                msg = json.loads(body_data)
+                self.response("error", f"Failed to read message: {err}")
+                continue
+            if msg:
                 self.dispatch(msg)
-
-            except EOFError:
-                break
-            except Exception as e:
-                self.log(f"Mainloop Error: {traceback.format_exc()}")
-                self.send_response("error", f"Internal Error: {str(e)}")
 
 
 if __name__ == "__main__":
     config_path_arg = sys.argv[1] if len(sys.argv) > 1 else None
-    daemon = CopyLotDaemon(config_path_arg)
-    daemon.mainloop()
+    daemon = CopylotDaemon(config_path_arg)
+    daemon.run()
