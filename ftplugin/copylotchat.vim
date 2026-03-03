@@ -1,7 +1,6 @@
-" plugin name: Fitten Code - Chatbar configuration
-" plugin version: 0.2.1
+" plugin name: copylot - Chatbar
 
-if exists("b:current_syntax")
+if exists('b:current_syntax')
     finish
 endif
 
@@ -17,13 +16,13 @@ setlocal norelativenumber
 setlocal signcolumn=no
 setlocal nomodifiable
 
-nnoremap <buffer><silent> <LeftMouse> <LeftMouse>:call FittenClick()<CR>
+nnoremap <buffer><silent> <LeftMouse> <LeftMouse>:call copylot#chat#click()<CR>
 
 " 高亮
-syntax match FittenCodeFenceLine "^```.*" contains=FittenButton,FittenCodeFence
-syntax match FittenCodeFence "^```\s*\w*" contained
-syntax match FittenButton "\[.\{-}\]" contained
-highlight default FittenCodeFence ctermfg=lightred guifg=#FF8888
-highlight def link FittenButton Question
+syntax match copylotFenceLine "^```.*" contains=copylotButton,copylotFence
+syntax match copylotFence "^```\s*\w*" contained
+syntax match copylotButton "\[.\{-}\]" contained
+highlight default copylotFence ctermfg=lightred guifg=#FF8888
+highlight def link copylotButton Question
 
-let b:current_syntax = "fittenchat"
+let b:current_syntax = "copylotchat"
