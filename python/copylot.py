@@ -1,7 +1,6 @@
 import json
 import os
 import sys
-from termios import ISIG
 
 from git import gitDiff, gitLog
 from provider import ProviderBuild
@@ -49,10 +48,12 @@ class CopylotDaemon:
             return
 
         try:
-            ai_res = self.provider.send(content)
-            self.response("answer", ai_res)
+            for msg in self.provider.stream(content):
+                self.response("answer", msg)
         except Exception as e:
             self.response("error", f"AI Provider Error: {e}")
+        finally:
+            self.response("ends", "")
 
     def handle_stop(self):
         """Handle 'stop' action."""
