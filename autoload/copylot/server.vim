@@ -75,8 +75,7 @@ function! s:send(data) abort
     endif
 
     let l:json_req = json_encode(a:data)
-    let l:header = 'Content-Length: ' . len(l:json_req) . "\r\n\r\n"
-    call ch_sendraw(s:job, l:header . l:json_req)
+    call ch_sendraw(s:job, l:json_req . "\n\n")
 endfunction
 
 
@@ -86,25 +85,20 @@ function! s:on_response(channel, msg) abort
     endif
 
     let s:response_buffer .= a:msg
-    let l:length_str = matchstr(s:response_buffer, '\zs\d\+\r\n\r\n')[:-4]
-    if empty(l:length_str)
-        return
-    endif
-    let l:length_num = str2nr(l:length_str)
+    while stridx(s:response_buffer, "\n\n") >= 0
+        let l:pos = stridx(s:response_buffer, "\n\n")
+        let l:response_json = s:response_buffer[:l:pos-1]
+        let s:response_buffer = s:response_buffer[l:pos+2:]
 
-    let l:response_text = split(s:response_buffer, "\r\n\r\n")[1]
-    if len(l:response_text) < l:length_num
-        return
-    else
-        let s:response_buffer = l:response_text[l:length_num:]
-        let l:response_json = l:response_text[:l:length_num - 1]
-    endif
+        if empty(l:response_json)
+            continue
+        endif
 
-    echom 'Received response: ' . l:response_json
-    let l:response_json = json_decode(l:response_json)
-    if has_key(l:response_json, 'type') && has_key(s:callback_funs, l:response_json.type)
-        call call(s:callback_funs[l:response_json.type], [l:response_json])
-    endif
+        let l:response_data = json_decode(l:response_json)
+        if has_key(l:response_data, 'type') && has_key(s:callback_funs, l:response_data.type)
+            call call(s:callback_funs[l:response_data.type], [l:response_data])
+        endif
+    endwhile
 endfunction
 
 

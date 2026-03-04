@@ -224,7 +224,6 @@ endfunction
 
 function! s:AddButton() abort
     let l:is_upper_code_border = 1
-    echom "scan code block from " . g:fittenchat_data.answer_border . " to " . line('$')
     for l:lnum in range(g:fittenchat_data.answer_border, line('$') - 1)
         let l:str = getline(l:lnum)
         if l:str =~# '^```'

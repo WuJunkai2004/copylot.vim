@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+from termios import ISIG
 
 from git import gitDiff, gitLog
 from provider import ProviderBuild
@@ -18,6 +19,7 @@ class CopylotDaemon:
 
         self.config_path = config_path
         self.provider = None
+        self._buffer = b""
         try:
             self.provider = ProviderBuild(config_path)
         except Exception as e:
@@ -28,13 +30,11 @@ class CopylotDaemon:
         sys.stderr.flush()
 
     def response(self, resp_type: str, content):
-        """Sends a JSON response with Content-Length header."""
+        """Sends a JSON response separated by \n\n."""
         # type: answer, ends, error, gitmsg
         response_obj = {"type": resp_type, "content": content}
-        body = json.dumps(response_obj, ensure_ascii=False)
-        encoded_body = body.encode("utf-8")
-        header = f"Content-Length: {len(encoded_body)}\r\n\r\n"
-        sys.stdout.buffer.write(header.encode("ascii") + encoded_body)
+        body = json.dumps(response_obj, ensure_ascii=False).encode("utf-8")
+        sys.stdout.buffer.write(body + b"\n\n")
         sys.stdout.buffer.flush()
 
     def handle_query(self, content: list):
@@ -124,37 +124,27 @@ class CopylotDaemon:
             self.response("error", f"Unknown action: {action}")
             self.response("ends", "")
 
-    def read(self) -> tuple[dict | None, str | None]:
+    def read(self) -> tuple[dict | None, str]:
         """Reads a message from stdin and returns the parsed JSON and error string."""
         try:
-            line = sys.stdin.buffer.readline()
-            if not line:
-                return None, "EOF"
-            if not line.startswith(b"Content-Length:"):
-                return None, f"Invalid header: {line!r}"
-
-            try:
-                length = int(line.split(b":")[1].strip())
-            except (IndexError, ValueError):
-                return None, f"Invalid length in header: {line!r}"
-
-            # Skip the rest of the headers (until \r\n\r\n)
             while True:
                 line = sys.stdin.buffer.readline()
-                if not line or line == b"\r\n" or line == b"\n":
-                    break
-
-            body = sys.stdin.buffer.read(length)
-            if len(body) < length:
-                return None, f"Short read: expected {length}, got {len(body)}"
-
-            return json.loads(body.decode("utf-8")), None
+                if not line or not isinstance(line, bytes):
+                    return None, "EOF"
+                if line == b"\n":
+                    if not self._buffer:
+                        continue  # Ignore empty lines
+                    data = self._buffer
+                    self._buffer = b""
+                    return json.loads(data.decode("utf-8")), ""
+                self._buffer += line
         except Exception as e:
             return None, str(e)
 
     def run(self):
         while True:
             msg, err = self.read()
+            self.log(f"Received message: {msg}, Error: {err}")
             if err:
                 if err == "EOF":
                     break
