@@ -318,6 +318,7 @@ function! s:code_copy() abort
         let @+ = l:code
     else
         let @" = l:code
+        let @c = l:code
     endif
     echom "[Copylot] Code copied to clipboard."
 endfunction
