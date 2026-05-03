@@ -119,10 +119,16 @@ endfunction
 
 function! copylot#server#handle_answer(response) abort
     let l:msg = get(a:response, 'content', '')
+    if type(l:msg) != v:t_string
+        let l:msg = string(l:msg)
+    endif
 
     if empty(s:history) || s:history[-1].role !=# 'assistant'
         call add(s:history, {'role': 'assistant', 'content': l:msg})
     else
+        if type(s:history[-1].content) != v:t_string
+            let s:history[-1].content = string(s:history[-1].content)
+        endif
         let s:history[-1].content .= l:msg
     endif
 

@@ -45,41 +45,23 @@ class Stream:
     def __init__(self, url: str):
         self.url: str = url
 
-    def post(self, headers: dict, data: str, timeout: int = 60, sep="\n\n"):
+    def post(self, headers: dict, data: str, timeout: int = 60):
         req = urllib.request.Request(
             self.url, headers=headers, data=data.encode("utf-8")
         )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as res:
-                buffer = ""
-                while True:
-                    chunk = res.read(1024).decode("utf-8")
-                    if not chunk:
-                        break
-                    buffer += chunk
-                    while sep in buffer:
-                        part, buffer = buffer.split(sep, 1)
-                        yield part, ""
-                if buffer:
-                    yield buffer, ""
+                for line in res:
+                    yield line.decode("utf-8"), ""
         except Exception as e:
             yield "", str(e)
 
-    def get(self, headers: dict, timeout: int = 60, sep="\n\n"):
+    def get(self, headers: dict, timeout: int = 60):
         req = urllib.request.Request(self.url, headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as res:
-                buffer = ""
-                while True:
-                    chunk = res.read(1024).decode("utf-8")
-                    if not chunk:
-                        break
-                    buffer += chunk
-                    while sep in buffer:
-                        part, buffer = buffer.split(sep, 1)
-                        yield part, ""
-                if buffer:
-                    yield buffer, ""
+                for line in res:
+                    yield line.decode("utf-8"), ""
         except Exception as e:
             yield "", str(e)
 
@@ -162,8 +144,9 @@ class OpenAIProvider(Provider):
                     chunk_json = json.loads(payload)
                     if "choices" in chunk_json and len(chunk_json["choices"]) > 0:
                         delta = chunk_json["choices"][0].get("delta", {})
-                        if "content" in delta:
-                            yield delta["content"]
+                        content = delta.get("content")
+                        if content is not None:
+                            yield content
                 except json.JSONDecodeError:
                     continue
 
