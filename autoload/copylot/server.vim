@@ -6,6 +6,7 @@ let s:callback_funs = {
     \ 'answer': function('copylot#server#handle_answer'),
     \ 'ends': function('copylot#server#handle_ends'),
     \ 'error': function('copylot#server#handle_error'),
+    \ 'gitmsg': function('copylot#server#handle_gitmsg'),
 \}
 let s:history_limit = get(g:, 'copylot_history', 20)
 
@@ -75,6 +76,11 @@ function! copylot#server#query(question) abort
         \ 'content': s:history,
     \}
     call s:send(l:data)
+endfunction
+
+
+function! copylot#server#action(data) abort
+    call s:send(a:data)
 endfunction
 
 
@@ -149,4 +155,41 @@ function! copylot#server#handle_error(response) abort
     call copylot#chat#print('————————————', 1)
     call copylot#chat#switch('show')
     call copylot#chat#addButtons()
+endfunction
+
+
+function! copylot#server#handle_gitmsg(response) abort
+    let l:msg = get(a:response, 'content', '')
+    if empty(l:msg)
+        return
+    endif
+
+    " If we are in a git commit buffer, insert the message
+    if &filetype ==# 'gitcommit' || expand('%:t') ==# 'COMMIT_EDITMSG'
+        " Remove existing content if it's just comments
+        let l:lines = getline(1, '$')
+        let l:has_content = 0
+        for l:line in l:lines
+            if l:line !~# '^#' && !empty(trim(l:line))
+                let l:has_content = 1
+                break
+            endif
+        endfor
+
+        if !l:has_content
+            " Clear and insert
+            %delete _
+            call setline(1, split(l:msg, "\n"))
+        else
+            " Append at top
+            call append(0, split(l:msg, "\n") + [''])
+        endif
+        return
+    endif
+
+    " Otherwise, show it in the chat sidebar
+    call copylot#chat#toggle()
+    call copylot#chat#print("\n> _Generated Commit Message_:\n", 1)
+    call copylot#chat#print(l:msg, 1)
+    call copylot#chat#print("\n————————————", 1)
 endfunction
