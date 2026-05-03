@@ -73,7 +73,11 @@ function! copylot#chat#print(text, ...) abort
         return
     endif
 
-    execute l:win_nr . 'wincmd w'
+    let l:save_win = winnr()
+    if l:save_win != l:win_nr
+        execute l:win_nr . 'wincmd w'
+    endif
+
     setlocal modifiable
 
     let l:force_new_line = a:0 > 0 ? a:1 : 0
@@ -91,6 +95,10 @@ function! copylot#chat#print(text, ...) abort
     let s:state.input_border = line('$')
     setlocal nomodifiable
     normal! G
+
+    if l:save_win != l:win_nr
+        execute l:save_win . 'wincmd w'
+    endif
 endfunction
 
 
@@ -129,7 +137,20 @@ endfunction
 
 
 function! copylot#chat#switch(new_mode) abort
+    let l:win_nr = bufwinnr('^' . s:sidebar_name . '$')
+    if l:win_nr == -1
+        return
+    endif
+
+    let l:save_win = winnr()
+    if l:save_win != l:win_nr
+        execute l:win_nr . 'wincmd w'
+    endif
+
     if a:new_mode == s:state.mode
+        if l:save_win != l:win_nr
+            execute l:save_win . 'wincmd w'
+        endif
         return
     endif
 
@@ -157,6 +178,10 @@ function! copylot#chat#switch(new_mode) abort
 
     elseif a:new_mode ==# 'answer'
         setlocal nomodifiable
+    endif
+
+    if l:save_win != l:win_nr
+        execute l:save_win . 'wincmd w'
     endif
 endfunction
 
@@ -248,6 +273,16 @@ function! s:guard_backspace() abort
 endfunction
 
 function! copylot#chat#addButtons() abort
+    let l:win_nr = bufwinnr('^' . s:sidebar_name . '$')
+    if l:win_nr == -1
+        return
+    endif
+
+    let l:save_win = winnr()
+    if l:save_win != l:win_nr
+        execute l:win_nr . 'wincmd w'
+    endif
+
     let l:is_upper = 1
     setlocal modifiable
     for l:lnum in range(s:state.answer_border, line('$') - 1)
@@ -260,6 +295,10 @@ function! copylot#chat#addButtons() abort
         endif
     endfor
     setlocal nomodifiable
+
+    if l:save_win != l:win_nr
+        execute l:save_win . 'wincmd w'
+    endif
 endfunction
 
 " Ported: Precise column-based click detection
