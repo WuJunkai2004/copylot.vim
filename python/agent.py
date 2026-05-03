@@ -117,6 +117,7 @@ class Agent:
         for _ in range(10):
             response = self.provider.send(messages)
             messages.append({"role": "assistant", "content": response})
+            yield {"type": "assistant", "content": response}
 
             # 使用更具体的 ```tool 标签，并增加对 ```json 的容错（带结构检查）
             tool_calls = re.findall(
@@ -141,6 +142,7 @@ class Agent:
                     else:
                         output = self.mcp_manager.execute(tool_name, **args)
 
+                    yield {"type": "tool_result", "tool": tool_name, "output": output}
                     results.append(f"Tool '{tool_name}' output: {output}")
                     executed_any = True
                 except Exception:
@@ -152,4 +154,34 @@ class Agent:
 
             messages.append({"role": "user", "content": "\n".join(results)})
 
-        return messages[-1]["content"]
+    @staticmethod
+    def pretty(step: dict) -> str:
+        """Beautify the execution steps for UI display."""
+        stype = step.get("type")
+        if stype == "assistant":
+            content = step.get("content", "")
+
+            def replace_with_placeholder(match):
+                try:
+                    # 尝试解析 JSON 以提取工具名
+                    call = json.loads(match.group(1))
+                    tool_name = call.get("tool", "unknown")
+                    return f"\n\n> ⏳ **Calling tool: {tool_name}**...\n"
+                except Exception:
+                    # 如果解析失败（可能是 LLM 还没写完），显示通用占位符
+                    return "\n\n> ⏳ **Calling tool**...\n"
+
+            # 将工具块替换为醒目的占位符
+            clean_content = re.sub(
+                r"```(?:tool|json)\n(.*?)\n```",
+                replace_with_placeholder,
+                content,
+                flags=re.DOTALL,
+            ).strip()
+            return clean_content
+        elif stype == "tool_result":
+            tool = step.get("tool")
+            output = step.get("output", "")
+            # 使用醒目的样式标识工具执行结果
+            return f"\n\n> 🛠️  **Executed {tool}**\n```\n{output}\n```\n"
+        return ""

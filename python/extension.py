@@ -102,7 +102,7 @@ class MCPManager:
         except Exception:
             # Silent fail for robustness in CLI
             pass
-        finally:
+        if name in self.servers:
             for tool in self.servers[name].tools_cache:
                 self.schema_cache.append(
                     {

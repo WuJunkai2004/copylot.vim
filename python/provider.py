@@ -41,7 +41,7 @@ def __toml_loads(s: str) -> tuple[dict, str]:
     return result, ""
 
 
-class stream:
+class Stream:
     def __init__(self, url: str):
         self.url: str = url
 
@@ -123,6 +123,8 @@ class OpenAIProvider(Provider):
         if error:
             raise Exception(f"Error sending message: {error}")
 
+        if response.startswith("data:"):
+            response = response[5:].strip()
         try:
             response_json = json.loads(response)
             if "choices" in response_json and len(response_json["choices"]) > 0:
@@ -130,6 +132,7 @@ class OpenAIProvider(Provider):
             else:
                 return ""
         except Exception as e:
+            print(f"response: {response}")
             raise Exception(f"Error parsing response: {e}")
 
     def stream(self, message: list):
@@ -145,7 +148,7 @@ class OpenAIProvider(Provider):
                 "stream": True,
             }
         )
-        for chunk, error in stream(self.api_url).post(headers, data):
+        for chunk, error in Stream(self.api_url).post(headers, data):
             if error:
                 raise Exception(f"Error streaming message: {error}")
             for line in chunk.split("\n"):

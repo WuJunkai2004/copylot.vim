@@ -2,6 +2,7 @@ import json
 import os
 import sys
 
+from agent import Agent
 from git import gitDiff, gitLog
 from provider import ProviderBuild
 
@@ -17,12 +18,13 @@ class CopylotDaemon:
             config_path = os.path.expanduser("~/.vim/ai_config.toml")
 
         self.config_path = config_path
-        self.provider = None
         self._buffer = b""
         try:
             self.provider = ProviderBuild(config_path)
+            self.agent = Agent(self.provider)
         except Exception as e:
             self.log(f"Failed to initialize provider: {e}")
+            exit(1)
 
     def log(self, msg):
         sys.stderr.write(f"LOG: {msg}\n")
@@ -52,6 +54,26 @@ class CopylotDaemon:
                 self.response("answer", msg)
         except Exception as e:
             self.response("error", f"AI Provider Error: {e}")
+        finally:
+            self.response("ends", "")
+
+    def handle_agent(self, content: list):
+        """Handle 'agent' action."""
+        if not self.agent:
+            self.response("error", "Agent not initialized. Check your config.")
+            return
+
+        if not isinstance(content, list):
+            self.response("error", "Content must be a list of messages.")
+            return
+
+        try:
+            for step in self.agent.act(content):
+                pretty_text = self.agent.pretty(step)
+                if pretty_text:
+                    self.response("answer", pretty_text)
+        except Exception as e:
+            self.response("error", f"AI Agent Error: {e}")
         finally:
             self.response("ends", "")
 
