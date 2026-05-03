@@ -61,8 +61,17 @@ function! copylot#server#query(question) abort
         call remove(s:history, 0)
     endif
 
+    " Detect @agent in a single line (ignoring spaces)
+    let l:action = 'query'
+    for l:line in split(a:question, "\n")
+        if trim(l:line) ==? '@agent'
+            let l:action = 'agent'
+            break
+        endif
+    endfor
+
     let l:data = {
-        \ 'action': 'query',
+        \ 'action': l:action,
         \ 'content': s:history,
     \}
     call s:send(l:data)
