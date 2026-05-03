@@ -1,0 +1,195 @@
+let s:job = v:null
+let s:python_script = expand('<sfile>:p:h:h:h') . '/python/copylot.py'
+let s:history = []
+let s:response_buffer = ''
+let s:callback_funs = {
+    \ 'answer': function('copylot#server#handle_answer'),
+    \ 'ends': function('copylot#server#handle_ends'),
+    \ 'error': function('copylot#server#handle_error'),
+    \ 'gitmsg': function('copylot#server#handle_gitmsg'),
+\}
+let s:history_limit = get(g:, 'copylot_history', 20)
+
+
+function! copylot#server#available() abort
+    return executable('python3') || executable('python')
+endfunction
+
+
+function! copylot#server#start() abort
+    if !copylot#server#available()
+        return
+    endif
+
+    if s:job != v:null && job_status(s:job) ==# 'run'
+        return
+    endif
+
+    let l:python = executable('python3') ? 'python3' : 'python'
+    let l:cmd = [l:python, s:python_script]
+    if exists('g:copylot_config')
+        call add(l:cmd, expand(g:copylot_config))
+    endif
+
+    let s:job = job_start(l:cmd, {
+        \ 'out_mode': 'raw',
+        \ 'in_io': 'pipe',
+        \ 'out_io': 'pipe',
+        \ 'err_io': 'pipe',
+        \ 'out_cb': function('s:on_response'),
+        \ 'exit_cb': function('s:on_exit'),
+        \ })
+endfunction
+
+
+function! copylot#server#stop() abort
+    if s:job != v:null && job_status(s:job) ==# 'run'
+        call job_stop(s:job)
+        let s:job = v:null
+        let s:channel = v:null
+    endif
+endfunction
+
+
+function! copylot#server#query(question) abort
+    if s:job == v:null || job_status(s:job) !=# 'run'
+        call copylot#chat#print('__[Error]__: Server is ' . (s:job == v:null ? 'not running' : job_status(s:job)), 1)
+        return
+    endif
+
+    call add(s:history, {'role': 'user', 'content': a:question})
+    if len(s:history) > s:history_limit
+        call remove(s:history, 0)
+    endif
+
+    " Detect @agent in a single line (ignoring spaces)
+    let l:action = 'query'
+    for l:line in split(a:question, "\n")
+        if trim(l:line) ==? '@agent'
+            let l:action = 'agent'
+            break
+        endif
+    endfor
+
+    let l:data = {
+        \ 'action': l:action,
+        \ 'content': s:history,
+    \}
+    call s:send(l:data)
+endfunction
+
+
+function! copylot#server#action(data) abort
+    call s:send(a:data)
+endfunction
+
+
+function! s:send(data) abort
+    if s:job == v:null || job_status(s:job) !=# 'run'
+        return
+    endif
+
+    let l:json_req = json_encode(a:data)
+    call ch_sendraw(s:job, l:json_req . "\n\n")
+endfunction
+
+
+function! s:on_response(channel, msg) abort
+    if empty(a:msg)
+        return
+    endif
+
+    let s:response_buffer .= a:msg
+    while stridx(s:response_buffer, "\n\n") >= 0
+        let l:pos = stridx(s:response_buffer, "\n\n")
+        let l:response_json = s:response_buffer[:l:pos-1]
+        let s:response_buffer = s:response_buffer[l:pos+2:]
+
+        if empty(l:response_json)
+            continue
+        endif
+
+        let l:response_data = json_decode(l:response_json)
+        if has_key(l:response_data, 'type') && has_key(s:callback_funs, l:response_data.type)
+            call call(s:callback_funs[l:response_data.type], [l:response_data])
+        endif
+    endwhile
+endfunction
+
+
+function! s:on_exit(channel, exit_code) abort
+    let s:job = v:null
+    let s:response_buffer = ''
+endfunction
+
+
+function! copylot#server#handle_answer(response) abort
+    let l:msg = get(a:response, 'content', '')
+    if type(l:msg) != v:t_string
+        let l:msg = string(l:msg)
+    endif
+
+    if empty(s:history) || s:history[-1].role !=# 'assistant'
+        call add(s:history, {'role': 'assistant', 'content': l:msg})
+    else
+        if type(s:history[-1].content) != v:t_string
+            let s:history[-1].content = string(s:history[-1].content)
+        endif
+        let s:history[-1].content .= l:msg
+    endif
+
+    call copylot#chat#print(l:msg)
+endfunction
+
+
+function! copylot#server#handle_ends(response) abort
+    call copylot#chat#print('————————————', 1)
+    call copylot#chat#switch('show')
+    call copylot#chat#addButtons()
+endfunction
+
+
+function! copylot#server#handle_error(response) abort
+    let l:error_msg = get(a:response, 'content', 'Unknown error')
+    call copylot#chat#print('__[Error]__: ' . l:error_msg, 1)
+    call copylot#chat#print('————————————', 1)
+    call copylot#chat#switch('show')
+    call copylot#chat#addButtons()
+endfunction
+
+
+function! copylot#server#handle_gitmsg(response) abort
+    let l:msg = get(a:response, 'content', '')
+    if empty(l:msg)
+        return
+    endif
+
+    " If we are in a git commit buffer, insert the message
+    if &filetype ==# 'gitcommit' || expand('%:t') ==# 'COMMIT_EDITMSG'
+        " Remove existing content if it's just comments
+        let l:lines = getline(1, '$')
+        let l:has_content = 0
+        for l:line in l:lines
+            if l:line !~# '^#' && !empty(trim(l:line))
+                let l:has_content = 1
+                break
+            endif
+        endfor
+
+        if !l:has_content
+            " Clear and insert
+            %delete _
+            call setline(1, split(l:msg, "\n"))
+        else
+            " Append at top
+            call append(0, split(l:msg, "\n") + [''])
+        endif
+        return
+    endif
+
+    " Otherwise, show it in the chat sidebar
+    call copylot#chat#toggle()
+    call copylot#chat#print("\n> _Generated Commit Message_:\n", 1)
+    call copylot#chat#print(l:msg, 1)
+    call copylot#chat#print("\n————————————", 1)
+endfunction

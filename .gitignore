@@ -1,1 +1,5 @@
+# documents and tags
 doc/tags
+
+# python cache
+__pycache__
