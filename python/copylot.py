@@ -137,6 +137,8 @@ class CopylotDaemon:
 
         if action == "query":
             self.handle_query(content)
+        elif action == "agent":
+            self.handle_agent(content)
         elif action == "stop":
             self.handle_stop()
         elif action == "commit_message":

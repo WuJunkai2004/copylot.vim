@@ -62,14 +62,12 @@ function! copylot#server#query(question) abort
         call remove(s:history, 0)
     endif
 
-    " Detect @agent in a single line (ignoring spaces)
+    " Detect @agent at the start (ignoring leading spaces, followed by space or newline)
     let l:action = 'query'
-    for l:line in split(a:question, "\n")
-        if trim(l:line) ==? '@agent'
-            let l:action = 'agent'
-            break
-        endif
-    endfor
+    let l:first_line = split(a:question, "\n")[0]
+    if l:first_line =~? '^\s*@agent\($\|\s\)'
+        let l:action = 'agent'
+    endif
 
     let l:data = {
         \ 'action': l:action,

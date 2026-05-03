@@ -70,7 +70,7 @@ In the Chat sidebar, you can interact with the AI:
 - Press **`h`** to show the help message.
 - Click **`[copy]`** or **`[apply]`** (or press Enter on them) in code blocks to copy code or apply it directly to your previous window.
 
-To invoke the autonomous agent, include **`@agent`** in your message.
+To invoke the autonomous agent, start your message with **`@agent`**.
 
 在聊天侧边栏中，你可以与 AI 交互：
 - 按下 **`q`** 开始输入问题。
@@ -78,7 +78,7 @@ To invoke the autonomous agent, include **`@agent`** in your message.
 - 按下 **`h`** 显示帮助信息。
 - 点击代码块旁边的 **`[copy]`** 或 **`[apply]`**（或在上面按回车）来复制代码或将其直接应用到上一个窗口。
 
-若要调用自主智能体，请在消息中包含 **`@agent`**。
+若要调用自主智能体，请在消息开头包含 **`@agent`**。
 
 **Example / 示例:**
 > `@agent Help me find all TODOs in the src directory and summarize them.`
