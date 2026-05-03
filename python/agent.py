@@ -182,6 +182,17 @@ class Agent:
         elif stype == "tool_result":
             tool = step.get("tool")
             output = step.get("output", "")
+
+            # 为 UI 保持简洁，如果是读取文件则仅显示前 3 行
+            if tool == "read_file":
+                lines = output.splitlines()
+                if len(lines) > 3:
+                    output = "\n".join(lines[:3]) + f"\n... ({len(lines) - 3} more lines)"
+            elif tool == "bash":
+                lines = output.splitlines()
+                if len(lines) > 4:
+                    output = f"... ({len(lines) - 4} earlier lines)\n" + "\n".join(lines[-4:])
+
             # 使用醒目的样式标识工具执行结果
             return f"\n\n> 🛠️  **Executed {tool}**\n```\n{output}\n```\n"
         return ""
