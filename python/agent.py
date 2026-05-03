@@ -27,10 +27,13 @@ def run_bash(command: str) -> str:
             shell=True,
             cwd=WORKDIR,
             capture_output=True,
-            text=True,
+            text=False,  # Read as bytes to handle encoding manually
             timeout=120,
         )
-        out = (r.stdout + r.stderr).strip()
+        # Decode both stdout and stderr using utf-8 with replacement for invalid chars
+        stdout = r.stdout.decode("utf-8", errors="replace")
+        stderr = r.stderr.decode("utf-8", errors="replace")
+        out = (stdout + stderr).strip()
         return out[:50000] if out else "(no output)"
     except subprocess.TimeoutExpired:
         return "Error: Timeout (120s)"
@@ -38,7 +41,8 @@ def run_bash(command: str) -> str:
 
 def run_read(path: str, max_line: int = -1) -> str:
     try:
-        lines = safe_path(path).read_text().splitlines()
+        # Use utf-8 with errors='replace' for robustness on Windows/mixed encodings
+        lines = safe_path(path).read_text(encoding="utf-8", errors="replace").splitlines()
         if max_line != -1 and max_line < len(lines):
             lines = lines[:max_line] + [f"... ({len(lines) - max_line} more)"]
         return "\n".join(lines)[:50000]
@@ -50,7 +54,7 @@ def run_write(path: str, content: str) -> str:
     try:
         fp = safe_path(path)
         fp.parent.mkdir(parents=True, exist_ok=True)
-        fp.write_text(content)
+        fp.write_text(content, encoding="utf-8", errors="replace")
         return f"Wrote {len(content)} bytes to {path}"
     except Exception as e:
         return f"Error: {e}"
@@ -59,10 +63,10 @@ def run_write(path: str, content: str) -> str:
 def run_edit(path: str, old_text: str, new_text: str) -> str:
     try:
         fp = safe_path(path)
-        c = fp.read_text()
+        c = fp.read_text(encoding="utf-8", errors="replace")
         if old_text not in c:
             return f"Error: Text not found in {path}"
-        fp.write_text(c.replace(old_text, new_text, 1))
+        fp.write_text(c.replace(old_text, new_text, 1), encoding="utf-8", errors="replace")
         return f"Edited {path}"
     except Exception as e:
         return f"Error: {e}"
