@@ -54,6 +54,7 @@ model = "gpt-4o"
 | :--- | :--- | :--- |
 | `g:copylot_config` | Path to the config file. | `~/.vim/ai_config.toml` |
 | `g:copylot_history` | Number of chat messages to keep in history. | `20` |
+| `g:copylot_auto_commit_msg` | Whether to automatically generate commit messages when entering `gitcommit` buffer. | `0` |
 
 ## Usage / 使用方法
 
