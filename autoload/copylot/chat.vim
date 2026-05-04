@@ -3,6 +3,7 @@
 
 " This module export the below functions:
 " - copylot#chat#toggle(): Toggle the visibility of the chat sidebar.
+" - copylot#chat#reset(): Reset the chat sidebar to the initial state.
 " - copylot#chat#print(text, force_new_line): Print text to the chat sidebar
 " - copylot#chat#switch(mode): Switch the chat sidebar mode.
 " - copylot#chat#addButtons(): Add action buttons to code blocks in the answer.
@@ -64,6 +65,29 @@ function! copylot#chat#toggle() abort
     augroup END
 
     call copylot#chat#switch('show')
+endfunction
+
+function! copylot#chat#reset() abort
+    let l:win_nr = bufwinnr('^' . s:sidebar_name . '$')
+    if l:win_nr == -1
+        return
+    endif
+
+    let l:save_win = winnr()
+    if l:save_win != l:win_nr
+        execute l:win_nr . 'wincmd w'
+    endif
+
+    setlocal modifiable
+    silent %delete _
+    call append('$', '')
+    call s:show_welcome_message()
+    call copylot#chat#switch('show')
+    setlocal nomodifiable
+
+    if l:save_win != l:win_nr
+        execute l:save_win . 'wincmd w'
+    endif
 endfunction
 
 

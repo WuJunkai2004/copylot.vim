@@ -64,8 +64,20 @@ function! copylot#server#query(question) abort
 
     " Detect @agent at the start (ignoring leading spaces, followed by space or newline)
     let l:action = 'query'
-    let l:first_line = split(a:question, "\n")[0]
-    if l:first_line =~? '^\s*@agent\($\|\s\)'
+    let l:lines = split(a:question, "\n")
+    let l:first_line = empty(l:lines) ? '' : l:lines[0]
+    if l:first_line =~? '^\s*@clear\($\|\s\)'
+        call copylot#chat#reset()
+        let s:history = []
+        let l:rest = matchstr(a:question, '^\s*\c@clear\_s*\zs\_.*')
+        if !empty(l:rest)
+            call copylot#chat#print("> _Question_:\n", 1)
+            call copylot#chat#print(l:rest, 0)
+            call copylot#chat#print("\n> _Answer_:\n", 1)
+            call copylot#server#query(l:rest)
+        endif
+        return
+    elseif l:first_line =~? '^\s*@agent\($\|\s\)'
         let l:action = 'agent'
     endif
 

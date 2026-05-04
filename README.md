@@ -71,6 +71,7 @@ In the Chat sidebar, you can interact with the AI:
 - Click **`[copy]`** or **`[apply]`** (or press Enter on them) in code blocks to copy code or apply it directly to your previous window.
 
 To invoke the autonomous agent, start your message with **`@agent`**.
+To clear the chat history, use **`@clear`**. You can follow it with a new question.
 
 在聊天侧边栏中，你可以与 AI 交互：
 - 按下 **`q`** 开始输入问题。
@@ -79,9 +80,11 @@ To invoke the autonomous agent, start your message with **`@agent`**.
 - 点击代码块旁边的 **`[copy]`** 或 **`[apply]`**（或在上面按回车）来复制代码或将其直接应用到上一个窗口。
 
 若要调用自主智能体，请在消息开头包含 **`@agent`**。
+若要清空对话上下文，请使用 **`@clear`**。你可以在其后紧跟新的问题以开启新对话。
 
 **Example / 示例:**
 > `@agent Help me find all TODOs in the src directory and summarize them.`
+> `@clear Start a new topic about Python decorators.`
 
 The agent has access to:
 - `bash`: Run shell commands.
