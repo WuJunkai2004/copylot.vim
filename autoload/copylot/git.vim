@@ -1,4 +1,8 @@
 function! copylot#git#auto_commit_message() abort
+    " If the first line is not empty, it might be a commit --amend or the user has already typed something.
+    if getline(1) =~# '\S'
+        return
+    endif
     if &filetype ==# 'gitcommit' || expand('%:t') ==# 'COMMIT_EDITMSG'
         call append(0, "# Copylot is generating a commit message for you... Please wait.")
         call cursor(1, 1)
