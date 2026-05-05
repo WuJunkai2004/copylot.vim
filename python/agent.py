@@ -42,7 +42,9 @@ def run_bash(command: str) -> str:
 def run_read(path: str, max_line: int = -1) -> str:
     try:
         # Use utf-8 with errors='replace' for robustness on Windows/mixed encodings
-        lines = safe_path(path).read_text(encoding="utf-8", errors="replace").splitlines()
+        lines = (
+            safe_path(path).read_text(encoding="utf-8", errors="replace").splitlines()
+        )
         if max_line != -1 and max_line < len(lines):
             lines = lines[:max_line] + [f"... ({len(lines) - max_line} more)"]
         return "\n".join(lines)[:50000]
@@ -66,7 +68,9 @@ def run_edit(path: str, old_text: str, new_text: str) -> str:
         c = fp.read_text(encoding="utf-8", errors="replace")
         if old_text not in c:
             return f"Error: Text not found in {path}"
-        fp.write_text(c.replace(old_text, new_text, 1), encoding="utf-8", errors="replace")
+        fp.write_text(
+            c.replace(old_text, new_text, 1), encoding="utf-8", errors="replace"
+        )
         return f"Edited {path}"
     except Exception as e:
         return f"Error: {e}"
@@ -191,11 +195,15 @@ class Agent:
             if tool == "read_file":
                 lines = output.splitlines()
                 if len(lines) > 3:
-                    output = "\n".join(lines[:3]) + f"\n... ({len(lines) - 3} more lines)"
+                    output = (
+                        "\n".join(lines[:3]) + f"\n... ({len(lines) - 3} more lines)"
+                    )
             elif tool == "bash":
                 lines = output.splitlines()
                 if len(lines) > 4:
-                    output = f"... ({len(lines) - 4} earlier lines)\n" + "\n".join(lines[-4:])
+                    output = f"... ({len(lines) - 4} earlier lines)\n" + "\n".join(
+                        lines[-4:]
+                    )
 
             # 使用醒目的样式标识工具执行结果
             return f"\n\n> 🛠️  **Executed {tool}**\n```\n{output}\n```\n"
