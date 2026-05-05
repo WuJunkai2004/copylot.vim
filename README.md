@@ -27,10 +27,10 @@ Copylot 是一个为 Vim 打造的 AI 编程助手。它提供了一个聊天侧
 
 ```vim
 " vim-plug
-Plug 'fittentech/fittencode.vim'
+Plug 'WuJunkai2004/copylot.vim'
 
 " vundle
-Plugin 'fittentech/fittencode.vim'
+Plugin 'WuJunkai2004/copylot.vim'
 ```
 
 ## Configuration / 配置
@@ -49,15 +49,38 @@ provider = "openai"
 # OpenAI 兼容 API 配置
 # 只要遵循 OpenAI API 格式，你就可以替换成自己的 API 提供商。
 [openai]
+# Optional: Specify the API schema, default is "openai". Future versions may support "gemini", "anthropic", etc.
+# 可选：指定 API 模式，默认为 "openai"。未来版本可能
 schema = "openai"
+# Required: The base URL of the API. For OpenAI, it's "https://api.openai.com/v1". For other providers, it may differ.
+# 必需：API 的基础 URL。对于 OpenAI 是 "https://api.openai.com/v1"，其他提供商可能不同。
 api_url = "https://api.openai.com/v1"
+# Optional: Your API key for authentication. If not provided, it will default to an empty string.
+# 可选：用于认证的 API 密钥。如果未提供，将默认为空字符串。
 api_key = "your-api-key-here"
+# Required: The model to use for AI interactions. For OpenAI, you can specify models like "gpt-4o", "gpt-3.5-turbo", etc.
+# 必需：用于 AI 交互的模型。对于 OpenAI，你可以指定 "
 model = "gpt-4o"
 ```
 
-schema 目前只能是 "openai"，后期会支持 "gemini" 和 "anthropic" 等格式。
 
-schema 和 api_key 不是必须的。如无提供，schema 默认为 "openai"，api_key 默认为空。
+#### Git Commit Message Configuration / 提交信息配置
+
+You can customize the AI provider and system prompt specifically for Git commit message generation.
+你可以为 Git 提交信息的生成定制专门的 AI 提供者和系统提示词。
+
+```toml
+[commit]
+# Optional: Override the global provider (e.g., use a smaller/faster model for commits)
+# 可选：覆盖全局 provider（例如为提交信息生成使用更小、更快的模型）
+provider = "ollama"
+
+# Optional: Replace the default system prompt.
+# 可选：替换默认的系统提示词。如果提供，它将替换原本模拟用户风格的专家设置。
+prompt = "You are a git commit expert."
+```
+
+
 
 ### Vim Options / Vim 选项
 

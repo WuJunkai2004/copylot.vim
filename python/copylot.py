@@ -3,6 +3,7 @@ import os
 import sys
 
 from agent import Agent
+from config import Config
 from git import gitDiff, gitLog
 from provider import ProviderBuild
 
@@ -18,6 +19,7 @@ class CopylotDaemon:
             config_path = os.path.expanduser("~/.vim/ai_config.toml")
 
         self.config_path = config_path
+        self.config = Config(config_path)
         self._buffer = b""
         try:
             self.provider = ProviderBuild(config_path)
@@ -102,6 +104,25 @@ class CopylotDaemon:
             if not diff.strip() or diff.startswith("An error occurred"):
                 self.response("answer", f"No staged changes found or error: {diff}")
             else:
+                # Use custom provider if configured
+                commit_provider_name = self.config.get("commit.provider")
+                provider = self.provider
+                if commit_provider_name:
+                    try:
+                        provider = ProviderBuild(self.config_path, commit_provider_name)
+                    except Exception as e:
+                        self.log(
+                            f"Failed to build commit provider '{commit_provider_name}': {e}"
+                        )
+
+                # Use custom prompt if configured
+                commit_prompt = self.config.get("commit.prompt")
+                system_content = (
+                    commit_prompt
+                    if commit_prompt is not None
+                    else "You are a git commit expert who mimics the user's specific writing style based on history."
+                )
+
                 prompt = (
                     f"The following is the user's recent commit history:\n"
                     f"{history}\n\n"
@@ -112,11 +133,11 @@ class CopylotDaemon:
                 messages = [
                     {
                         "role": "system",
-                        "content": "You are a git commit expert who mimics the user's specific writing style based on history.",
+                        "content": system_content,
                     },
                     {"role": "user", "content": prompt},
                 ]
-                ai_res = self.provider.send(messages)
+                ai_res = provider.send(messages)
                 self.response("gitmsg", ai_res)
         except Exception as e:
             self.response("error", f"Git Commit Error: {str(e)}")

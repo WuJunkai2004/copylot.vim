@@ -134,17 +134,20 @@ class OpenAIProvider(Provider):
                     continue
 
 
-def ProviderBuild(path: str) -> Provider:
+def ProviderBuild(path: str, provider_name=None) -> Provider:
     setting = Config(path)
     if not setting.load_success:
         raise Exception("Error loading config")
 
-    if not setting.required("provider"):
-        raise Exception("provider is required in config")
-    provider_name = setting.get("provider")
+    if not provider_name:
+        if not setting.required("provider"):
+            raise Exception("provider is required in config")
+        provider_name = setting.get("provider")
 
     if not setting.required([f"{provider_name}.api_url", f"{provider_name}.model"]):
-        raise Exception("api_url and model are required in config")
+        raise Exception(
+            f"api_url and model are required in config for provider {provider_name}"
+        )
 
     schema_name: str = setting.get(f"{provider_name}.schema", "openai")  # type: ignore
 
