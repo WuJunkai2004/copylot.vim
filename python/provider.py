@@ -1,8 +1,9 @@
 # python/provider.py
 # A provider for the AI provider
 import json
-import os
 import urllib.request
+
+from config import Config
 
 
 def post(url: str, headers: dict, data: str, timeout: int = 60) -> tuple[str, str]:
@@ -21,24 +22,6 @@ def get(url: str, headers: dict, timeout: int = 60) -> tuple[str, str]:
             return res.read().decode("utf-8"), ""
     except Exception as e:
         return "", str(e)
-
-
-def __toml_loads(s: str) -> tuple[dict, str]:
-    if not os.path.exists(s):
-        return {}, f"File not found: {s}"
-    result = {}
-    with open(s, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            result[key] = value
-    return result, ""
 
 
 class Stream:
@@ -152,25 +135,30 @@ class OpenAIProvider(Provider):
 
 
 def ProviderBuild(path: str) -> Provider:
-    config, err = __toml_loads(path)
-    if err:
-        raise Exception(f"Error loading config: {err}")
-    if "api_url" not in config:
-        raise Exception("api_url is required in config")
+    setting = Config(path)
+    if not setting.load_success:
+        raise Exception("Error loading config")
 
-    provider_name = config.get("provider", "openai").lower()
-    default_provider = OpenAIProvider
+    if not setting.required("provider"):
+        raise Exception("provider is required in config")
+    provider_name = setting.get("provider")
+
+    if not setting.required([f"{provider_name}.api_url", f"{provider_name}.model"]):
+        raise Exception("api_url and model are required in config")
+
+    schema_name: str = setting.get(f"{provider_name}.schema", "openai")  # type: ignore
+
     sub_class_map = {sub.__name__.lower(): sub for sub in Provider.__subclasses__()}
     for sub_class in sub_class_map:
-        if sub_class.startswith(provider_name):
+        if sub_class.startswith(schema_name):
             return sub_class_map[sub_class](
-                config["api_url"],
-                config.get("api_key", ""),
-                config.get("model", "gpt-3.5-turbo"),
+                setting.get(f"{provider_name}.api_url"),
+                setting.get(f"{provider_name}.api_key", ""),
+                setting.get(f"{provider_name}.model"),
             )
 
-    return default_provider(
-        config["api_url"],
-        config.get("api_key", ""),
-        config.get("model", "gpt-3.5-turbo"),
+    return OpenAIProvider(
+        setting.get(f"{provider_name}.api_url"),
+        setting.get(f"{provider_name}.api_key", ""),
+        setting.get(f"{provider_name}.model"),
     )
